@@ -1,0 +1,574 @@
+name: Self-Building Android Project
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create Android Project Structure
+      run: |
+        mkdir -p AndroidExam2/app/src/main/java/com/example/androidexam2
+        mkdir -p AndroidExam2/app/src/main/res/layout
+        mkdir -p AndroidExam2/app/src/main/res/values
+        mkdir -p AndroidExam2/app/src/main/res/menu
+        mkdir -p AndroidExam2/app/src/main/res/drawable
+        mkdir -p AndroidExam2/app/src/main/res/mipmap-anydpi-v26
+        mkdir -p AndroidExam2/app/src/main/res/xml
+        mkdir -p AndroidExam2/gradle/wrapper
+
+    - name: Create Gradle wrapper properties
+      run: |
+        cat > AndroidExam2/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.1.1-bin.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+
+    - name: Download Gradle wrapper JAR
+      run: |
+        curl -L -o AndroidExam2/gradle/wrapper/gradle-wrapper.jar \
+          https://github.com/gradle/gradle/raw/v8.1.1/gradle/wrapper/gradle-wrapper.jar
+
+    - name: Create gradlew script
+      run: |
+        cat > AndroidExam2/gradlew << 'EOF'
+        #!/bin/sh
+        APP_HOME="$(cd "$(dirname "$0")" && pwd)"
+        CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+        exec java -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
+        EOF
+        chmod +x AndroidExam2/gradlew
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+        cache-dependency-path: AndroidExam2/gradle/wrapper/gradle-wrapper.properties
+
+    - name: Create root build.gradle
+      run: |
+        cat > AndroidExam2/build.gradle << 'EOF'
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath "com.android.tools.build:gradle:8.1.1"
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10"
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
+        EOF
+
+    - name: Create settings.gradle
+      run: |
+        cat > AndroidExam2/settings.gradle << 'EOF'
+        rootProject.name = "AndroidExam2"
+        include ':app'
+        EOF
+
+    - name: Create app build.gradle
+      run: |
+        cat > AndroidExam2/app/build.gradle << 'EOF'
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+        android {
+            namespace 'com.example.androidexam2'
+            compileSdk 33
+            defaultConfig {
+                applicationId "com.example.androidexam2"
+                minSdk 24
+                targetSdk 33
+                versionCode 1
+                versionName "1.0"
+                testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+            }
+            buildTypes {
+                release {
+                    minifyEnabled false
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                }
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+            kotlinOptions {
+                jvmTarget = '1.8'
+            }
+            buildFeatures {
+                viewBinding true
+            }
+        }
+        dependencies {
+            implementation 'androidx.core:core-ktx:1.10.1'
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+            implementation 'androidx.viewpager2:viewpager2:1.0.0'
+            implementation 'androidx.fragment:fragment-ktx:1.6.1'
+            testImplementation 'junit:junit:4.13.2'
+            androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+            androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+        }
+        EOF
+
+    - name: Create proguard-rules.pro
+      run: touch AndroidExam2/app/proguard-rules.pro
+
+    - name: Create gradle.properties
+      run: |
+        cat > AndroidExam2/gradle.properties << 'EOF'
+        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+        android.useAndroidX=true
+        android.enableJetifier=true
+        kotlin.code.style=official
+        EOF
+
+    - name: Create AndroidManifest.xml
+      run: |
+        cat > AndroidExam2/app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools">
+            <application
+                android:allowBackup="true"
+                android:dataExtractionRules="@xml/data_extraction_rules"
+                android:fullBackupContent="@xml/backup_rules"
+                android:icon="@mipmap/ic_launcher"
+                android:label="@string/app_name"
+                android:roundIcon="@mipmap/ic_launcher_round"
+                android:supportsRtl="true"
+                android:theme="@style/Theme.AndroidExam2"
+                tools:targetApi="31">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+                <activity
+                    android:name=".ModeActivity"
+                    android:exported="false"
+                    android:parentActivityName=".MainActivity">
+                    <meta-data
+                        android:name="android.support.PARENT_ACTIVITY"
+                        android:value=".MainActivity" />
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+    - name: Create MainActivity.kt
+      run: |
+        cat > AndroidExam2/app/src/main/java/com/example/androidexam2/MainActivity.kt << 'EOF'
+        package com.example.androidexam2
+
+        import android.content.Intent
+        import android.os.Bundle
+        import android.text.Editable
+        import android.text.TextWatcher
+        import android.util.Patterns
+        import android.widget.Button
+        import android.widget.EditText
+        import androidx.appcompat.app.AppCompatActivity
+        import com.google.android.material.snackbar.Snackbar
+
+        class MainActivity : AppCompatActivity() {
+
+            private lateinit var emailEditText: EditText
+            private lateinit var passwordEditText: EditText
+            private lateinit var loginButton: Button
+            private var backPressedTime: Long = 0
+            private val EXIT_DELAY = 2000
+
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                setContentView(R.layout.activity_main)
+                emailEditText = findViewById(R.id.emailEditText)
+                passwordEditText = findViewById(R.id.passwordEditText)
+                loginButton = findViewById(R.id.loginButton)
+                setupTextWatchers()
+                setupLoginButton()
+            }
+
+            private fun setupTextWatchers() {
+                val watcher = object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: Editable?) { validateFields() }
+                }
+                emailEditText.addTextChangedListener(watcher)
+                passwordEditText.addTextChangedListener(watcher)
+            }
+
+            private fun validateFields() {
+                val email = emailEditText.text.toString().trim()
+                val password = passwordEditText.text.toString().trim()
+                loginButton.isEnabled = Patterns.EMAIL_ADDRESS.matcher(email).matches() && password.length >= 6
+            }
+
+            private fun setupLoginButton() {
+                loginButton.setOnClickListener {
+                    startActivity(Intent(this, ModeActivity::class.java))
+                }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onBackPressed() {
+                if (backPressedTime + EXIT_DELAY > System.currentTimeMillis()) {
+                    super.onBackPressed(); return
+                }
+                Snackbar.make(findViewById(android.R.id.content), "Press back again to exit", Snackbar.LENGTH_SHORT).show()
+                backPressedTime = System.currentTimeMillis()
+            }
+        }
+        EOF
+
+    - name: Create ModeActivity.kt
+      run: |
+        cat > AndroidExam2/app/src/main/java/com/example/androidexam2/ModeActivity.kt << 'EOF'
+        package com.example.androidexam2
+
+        import android.content.Intent
+        import android.os.Bundle
+        import android.view.MenuItem
+        import android.widget.Button
+        import android.widget.PopupMenu
+        import androidx.appcompat.app.AppCompatActivity
+        import androidx.fragment.app.Fragment
+        import androidx.fragment.app.FragmentActivity
+        import androidx.viewpager2.adapter.FragmentStateAdapter
+        import androidx.viewpager2.widget.ViewPager2
+        import com.google.android.material.tabs.TabLayout
+        import com.google.android.material.tabs.TabLayoutMediator
+
+        class ModeActivity : AppCompatActivity() {
+
+            private lateinit var viewPager: ViewPager2
+            private lateinit var tabLayout: TabLayout
+            private lateinit var setModeButton: Button
+
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                setContentView(R.layout.activity_mode)
+                supportActionBar?.setDisplayHomeAsUpEnabled(true)
+                viewPager = findViewById(R.id.viewPager)
+                tabLayout = findViewById(R.id.tabLayout)
+                setModeButton = findViewById(R.id.setModeButton)
+
+                viewPager.adapter = ViewPagerAdapter(this)
+                TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+                    tab.text = when (position) { 0 -> "First"; 1 -> "Second"; 2 -> "Third"; else -> null }
+                }.attach()
+
+                setModeButton.setOnClickListener { view ->
+                    val popup = PopupMenu(this, view)
+                    popup.menuInflater.inflate(R.menu.mode_menu, popup.menu)
+                    popup.setOnMenuItemClickListener { item ->
+                        when (item.itemId) {
+                            R.id.action_light_mode, R.id.action_night_mode, R.id.action_system_mode -> true
+                            else -> false
+                        }
+                    }
+                    popup.show()
+                }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onBackPressed() {
+                if (viewPager.currentItem == 0) super.onBackPressed() else viewPager.currentItem = 0
+            }
+
+            override fun onOptionsItemSelected(item: MenuItem): Boolean {
+                return when (item.itemId) {
+                    android.R.id.home -> {
+                        startActivity(Intent(this, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        })
+                        finish(); true
+                    }
+                    else -> super.onOptionsItemSelected(item)
+                }
+            }
+
+            private inner class ViewPagerAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
+                override fun getItemCount() = 3
+                override fun createFragment(position: Int): Fragment = when (position) {
+                    0 -> FirstFragment(); 1 -> SecondFragment(); 2 -> ThirdFragment()
+                    else -> throw IllegalArgumentException("Invalid position")
+                }
+            }
+        }
+        EOF
+
+    - name: Create Fragment files
+      run: |
+        for FRAG in First Second Third; do
+          LOWER=$(echo "$FRAG" | tr '[:upper:]' '[:lower:]')
+          cat > AndroidExam2/app/src/main/java/com/example/androidexam2/${FRAG}Fragment.kt << FRAGEOF
+        package com.example.androidexam2
+
+        import android.os.Bundle
+        import androidx.fragment.app.Fragment
+        import android.view.LayoutInflater
+        import android.view.View
+        import android.view.ViewGroup
+
+        class ${FRAG}Fragment : Fragment() {
+            override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+                return inflater.inflate(R.layout.fragment_${LOWER}, container, false)
+            }
+        }
+        FRAGEOF
+        done
+
+    - name: Create layout XML files
+      run: |
+        cat > AndroidExam2/app/src/main/res/layout/activity_main.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context=".MainActivity">
+            <EditText
+                android:id="@+id/emailEditText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="32dp"
+                android:layout_marginEnd="32dp"
+                android:layout_marginBottom="16dp"
+                android:hint="Email"
+                android:inputType="textEmailAddress"
+                app:layout_constraintBottom_toTopOf="@+id/passwordEditText"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_chainStyle="packed" />
+            <EditText
+                android:id="@+id/passwordEditText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="32dp"
+                android:layout_marginEnd="32dp"
+                android:layout_marginBottom="32dp"
+                android:hint="Password"
+                android:inputType="textPassword"
+                app:layout_constraintBottom_toTopOf="@+id/loginButton"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/emailEditText" />
+            <Button
+                android:id="@+id/loginButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="32dp"
+                android:layout_marginEnd="32dp"
+                android:enabled="false"
+                android:text="Login"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/passwordEditText" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/layout/activity_mode.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context=".ModeActivity">
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/viewPager"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toTopOf="@+id/setModeButton"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tabLayout" />
+            <Button
+                android:id="@+id/setModeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="Set Mode"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+        EOF
+
+        for FRAG in first second third; do
+          TITLE="$(tr '[:lower:]' '[:upper:]' <<< ${FRAG:0:1})${FRAG:1}"
+          cat > AndroidExam2/app/src/main/res/layout/fragment_${FRAG}.xml << FRAGEOF
+        <?xml version="1.0" encoding="utf-8"?>
+        <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="${TITLE} Tab Content"
+                android:textSize="24sp" />
+        </FrameLayout>
+        FRAGEOF
+        done
+
+    - name: Create resource files
+      run: |
+        cat > AndroidExam2/app/src/main/res/values/strings.xml << 'EOF'
+        <resources>
+            <string name="app_name">AndroidExam2</string>
+        </resources>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/values/colors.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <color name="purple_200">#FFBB86FC</color>
+            <color name="purple_500">#FF6200EE</color>
+            <color name="purple_700">#FF3700B3</color>
+            <color name="teal_200">#FF03DAC5</color>
+            <color name="teal_700">#FF018786</color>
+            <color name="black">#FF000000</color>
+            <color name="white">#FFFFFFFF</color>
+        </resources>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/values/themes.xml << 'EOF'
+        <resources xmlns:tools="http://schemas.android.com/tools">
+            <style name="Theme.AndroidExam2" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+                <item name="colorPrimary">@color/purple_500</item>
+                <item name="colorPrimaryVariant">@color/purple_700</item>
+                <item name="colorOnPrimary">@color/white</item>
+                <item name="colorSecondary">@color/teal_200</item>
+                <item name="colorSecondaryVariant">@color/teal_700</item>
+                <item name="colorOnSecondary">@color/black</item>
+                <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+            </style>
+        </resources>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/menu/mode_menu.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <menu xmlns:android="http://schemas.android.com/apk/res/android">
+            <item android:id="@+id/action_light_mode" android:title="Light Mode" />
+            <item android:id="@+id/action_night_mode" android:title="Night Mode" />
+            <item android:id="@+id/action_system_mode" android:title="System Mode" />
+        </menu>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <data-extraction-rules>
+            <cloud-backup>
+                <include domain="file" path="." />
+            </cloud-backup>
+            <device-transfer>
+                <include domain="file" path="." />
+            </device-transfer>
+        </data-extraction-rules>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/xml/backup_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <full-backup-content>
+            <include domain="file" path="." />
+        </full-backup-content>
+        EOF
+
+    - name: Create drawable and mipmap files
+      run: |
+        cat > AndroidExam2/app/src/main/res/drawable/ic_launcher_background.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="108dp" android:height="108dp"
+            android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#FFFFFF" android:pathData="M0,0h108v108h-108z"/>
+        </vector>
+        EOF
+
+        cat > AndroidExam2/app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="108dp" android:height="108dp"
+            android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#6200EE"
+                android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
+        </vector>
+        EOF
+
+        for FILE in ic_launcher ic_launcher_round; do
+          cat > AndroidExam2/app/src/main/res/mipmap-anydpi-v26/${FILE}.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@drawable/ic_launcher_background"/>
+            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+        </adaptive-icon>
+        EOF
+        done
+
+    - name: Build Debug APK
+      run: cd AndroidExam2 && ./gradlew assembleDebug --stacktrace
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: AndroidExam2/app/build/outputs/apk/debug/app-debug.apk
+        if-no-files-found: warn
+
+    - name: Build Release APK
+      run: cd AndroidExam2 && ./gradlew assembleRelease --stacktrace
+      continue-on-error: true
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-unsigned
+        path: AndroidExam2/app/build/outputs/apk/release/app-release-unsigned.apk
+        if-no-files-found: warn
